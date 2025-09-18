@@ -26,19 +26,38 @@ jobs:
       - name: Create production environment file
         working-directory: ./frontend
         run: |
-          echo "REACT_APP_API_URL=https://expandev-app-06.azurewebsites.net/api/v1" > .env.production
+          echo "REACT_APP_API_URL=https://expandev-app-05.azurewebsites.net/api/v1" > .env.production
           cat .env.production
 
       - name: npm install, build, and test
         working-directory: ./frontend
         run: |
           npm install
-          REACT_APP_API_URL=https://expandev-app-06.azurewebsites.net/api/v1 npm run build --if-present
+          REACT_APP_API_URL=https://expandev-app-05.azurewebsites.net/api/v1 npm run build --if-present
           npm run test --if-present -- --passWithNoTests
+
+      - name: Copy static server files
+        working-directory: ./frontend
+        run: |
+          cp -r build/* .
+          cat > package.json <<'EOF'
+          {
+            "name": "react-app",
+            "version": "1.0.0",
+            "private": true,
+            "scripts": {
+              "start": "npx serve -s . -l 8080"
+            },
+            "dependencies": {
+              "serve": "^14.2.0"
+            }
+          }
+          EOF
 
       - name: Zip artifact for deployment
         working-directory: ./frontend
-        run: zip -r release.zip ./build
+        run: |
+          zip -r release.zip .             -x "*.git*"             -x "node_modules/*"             -x "src/*"             -x "public/*"             -x ".env*"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -63,7 +82,9 @@ jobs:
           name: react-app
 
       - name: Unzip artifact for deployment
-        run: unzip release.zip
+        run: |
+          unzip release.zip
+          rm release.zip
 
       - name: Wait for Azure to be ready
         run: sleep 30
@@ -77,5 +98,6 @@ jobs:
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v2
         with:
-          app-name: 'expandev-app-05'
+          app-name: 'expandev-app-06'
           package: .
+          startup-command: 'npm start'
