@@ -1,4 +1,4 @@
-name: Deploy Next.js Frontend to Azure Web App
+name: Deploy React Frontend to Azure Web App
 
 on:
   workflow_dispatch:
@@ -26,59 +26,24 @@ jobs:
       - name: Create production environment file
         working-directory: ./frontend
         run: |
-          echo "NEXT_PUBLIC_API_URL=https://expandev-app-05.azurewebsites.net/api/v1" > .env.production
+          echo "REACT_APP_API_URL=https://expandev-app-05.azurewebsites.net/api/v1" > .env.production
           cat .env.production
 
-      - name: Update next.config.mjs with backend URL
-        working-directory: ./frontend
-        run: |
-          cat > next.config.mjs << 'EOF'
-          /** @type {import('next').NextConfig} */
-          const nextConfig = {
-            output: 'standalone',
-            async rewrites() {
-              return [
-                {
-                  source: '/api/:path*',
-                  destination: 'https://expandev-app-05.azurewebsites.net/api/:path*',
-                },
-              ];
-            },
-          };
-          
-          export default nextConfig;
-          EOF
-
-      - name: npm install and build
+      - name: npm install, build, and test
         working-directory: ./frontend
         run: |
           npm install
-          NEXT_PUBLIC_API_URL=https://expandev-app-05.azurewebsites.net/api/v1 npm run build
-          
-          # Verificar se standalone foi criado
-          echo "Checking .next directory:"
-          ls -la .next/
-          
-          # Copiar arquivos estáticos necessários
-          cp -R ./public ./.next/standalone/public
-          cp -R ./.next/static ./.next/standalone/.next/static
-          
-          echo "Standalone directory contents:"
-          ls -la .next/standalone/
+          REACT_APP_API_URL=https://expandev-app-05.azurewebsites.net/api/v1 npm run build --if-present
+          npm run test --if-present -- --passWithNoTests
 
       - name: Zip artifact for deployment
         working-directory: ./frontend
-        run: |
-          cd .next/standalone
-          zip -r ../../release.zip .
-          cd ../..
-          echo "Release zip created"
-          ls -la release.zip
+        run: zip -r ../release.zip ./build
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
-          name: nextjs-app
+          name: react-app
           path: ./frontend/release.zip
 
   deploy:
@@ -87,7 +52,7 @@ jobs:
     environment:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
-    
+
     permissions:
       id-token: write
 
@@ -95,23 +60,14 @@ jobs:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: nextjs-app
+          name: react-app
 
       - name: Unzip artifact for deployment
-        run: |
-          echo "Files before unzip:"
-          ls -la
-          unzip release.zip
-          echo "Unzipped contents:"
-          ls -la
-          echo "Checking for package.json:"
-          if [ -f "package.json" ]; then
-            echo "package.json found!"
-            head -5 package.json
-          else
-            echo "ERROR: package.json not found!"
-          fi
-      
+        run: unzip release.zip
+
+      - name: Wait for Azure to be ready
+        run: sleep 30
+
       - name: Login to Azure
         uses: azure/login@v1
         with:
@@ -123,8 +79,3 @@ jobs:
         with:
           app-name: 'expandev-app-06'
           package: .
-          startup-command: 'node server.js'
-        env:
-          SCM_DO_BUILD_DURING_DEPLOYMENT: 'false'
-          WEBSITE_RUN_FROM_PACKAGE: '0'
-          ENABLE_ORYX_BUILD: 'false'
