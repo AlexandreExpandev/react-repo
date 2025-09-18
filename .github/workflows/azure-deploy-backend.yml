@@ -89,7 +89,7 @@ jobs:
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v2
         with:
-          app-name: 'expandev-app-06'
+          app-name: 'expandev-app-05'
           package: .
           startup-command: 'npm start'
         env:
