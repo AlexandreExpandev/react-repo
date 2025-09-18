@@ -26,19 +26,19 @@ jobs:
       - name: Create production environment file
         working-directory: ./frontend
         run: |
-          echo "REACT_APP_API_URL=https://expandev-app-05.azurewebsites.net/api/v1" > .env.production
+          echo "REACT_APP_API_URL=https://expandev-app-06.azurewebsites.net/api/v1" > .env.production
           cat .env.production
 
       - name: npm install, build, and test
         working-directory: ./frontend
         run: |
           npm install
-          REACT_APP_API_URL=https://expandev-app-05.azurewebsites.net/api/v1 npm run build --if-present
+          REACT_APP_API_URL=https://expandev-app-06.azurewebsites.net/api/v1 npm run build --if-present
           npm run test --if-present -- --passWithNoTests
 
       - name: Zip artifact for deployment
         working-directory: ./frontend
-        run: zip -r ../release.zip ./build
+        run: zip -r release.zip ./build
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -77,5 +77,5 @@ jobs:
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v2
         with:
-          app-name: 'expandev-app-06'
+          app-name: 'expandev-app-05'
           package: .
